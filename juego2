@@ -1,0 +1,1302 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>⚔️ Realm of Async — RPG</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=MedievalSharp&family=Cinzel:wght@400;700;900&family=Crimson+Text:ital,wght@0,400;0,600;1,400&display=swap');
+
+  :root {
+    --gold: #f0c040;
+    --gold-dim: #a07820;
+    --blood: #8b1a1a;
+    --crimson: #c0392b;
+    --emerald: #1a6b3a;
+    --sapphire: #1a3a7a;
+    --parchment: #f5e6c8;
+    --ink: #1a0a00;
+    --shadow: #0a0500;
+    --bg: #080400;
+    --panel: rgba(15, 8, 0, 0.92);
+    --border: #3a2800;
+    --hp-green: #2ecc71;
+    --hp-red: #e74c3c;
+    --mp-blue: #3498db;
+    --xp-gold: #f39c12;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--parchment);
+    font-family: 'Crimson Text', serif;
+    font-size: 18px;
+    min-height: 100vh;
+    overflow-x: hidden;
+    background-image:
+      radial-gradient(ellipse at 20% 80%, rgba(80,20,0,0.3) 0%, transparent 50%),
+      radial-gradient(ellipse at 80% 20%, rgba(20,40,80,0.2) 0%, transparent 50%),
+      url("data:image/svg+xml,%3Csvg width='60' height='60' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0 0h60v60H0z' fill='none'/%3E%3Ccircle cx='1' cy='1' r='0.5' fill='rgba(240,192,64,0.08)'/%3E%3C/svg%3E");
+  }
+
+  #app {
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 20px;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  /* ═══ HEADER ═══ */
+  .game-title {
+    text-align: center;
+    font-family: 'Cinzel', serif;
+    font-size: clamp(1.8rem, 5vw, 3rem);
+    font-weight: 900;
+    color: var(--gold);
+    text-shadow: 0 0 30px rgba(240,192,64,0.5), 0 2px 4px black;
+    letter-spacing: 4px;
+    padding: 12px 0 4px;
+    position: relative;
+  }
+  .game-title::after {
+    content: '';
+    display: block;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, var(--gold), transparent);
+    margin: 8px auto 0;
+    width: 60%;
+  }
+  .game-subtitle {
+    text-align: center;
+    color: var(--gold-dim);
+    font-style: italic;
+    font-size: 1rem;
+    letter-spacing: 2px;
+  }
+
+  /* ═══ PANELS ═══ */
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 16px;
+    position: relative;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.6), inset 0 1px 0 rgba(240,192,64,0.1);
+  }
+  .panel::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: 4px;
+    pointer-events: none;
+    background: linear-gradient(135deg, rgba(240,192,64,0.03) 0%, transparent 60%);
+  }
+
+  .panel-title {
+    font-family: 'Cinzel', serif;
+    font-size: 0.8rem;
+    letter-spacing: 3px;
+    color: var(--gold-dim);
+    text-transform: uppercase;
+    margin-bottom: 12px;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 8px;
+  }
+
+  /* ═══ CHARACTER SELECTION ═══ */
+  #char-select { animation: fadeIn 0.5s ease; }
+
+  .class-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 14px;
+    margin-top: 8px;
+  }
+
+  .class-card {
+    background: rgba(20,10,0,0.8);
+    border: 2px solid var(--border);
+    border-radius: 6px;
+    padding: 18px;
+    cursor: pointer;
+    transition: all 0.25s ease;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+  }
+  .class-card::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    transition: opacity 0.25s;
+    border-radius: 4px;
+  }
+  .class-card.warrior::before { background: radial-gradient(ellipse, rgba(180,30,30,0.2), transparent 70%); }
+  .class-card.mage::before   { background: radial-gradient(ellipse, rgba(30,80,180,0.2), transparent 70%); }
+  .class-card.rogue::before  { background: radial-gradient(ellipse, rgba(30,150,80,0.2), transparent 70%); }
+  .class-card.paladin::before{ background: radial-gradient(ellipse, rgba(200,160,30,0.25), transparent 70%); }
+  .class-card:hover { border-color: var(--gold); transform: translateY(-3px); box-shadow: 0 8px 24px rgba(0,0,0,0.5); }
+  .class-card:hover::before { opacity: 1; }
+
+  .class-icon { font-size: 2.8rem; margin-bottom: 8px; display: block; filter: drop-shadow(0 2px 4px black); }
+  .class-name { font-family: 'Cinzel', serif; font-size: 1.1rem; font-weight: 700; color: var(--gold); margin-bottom: 6px; }
+  .class-desc { font-size: 0.85rem; color: #c0a880; line-height: 1.5; margin-bottom: 10px; font-style: italic; }
+  .class-stats { font-size: 0.78rem; color: #907060; line-height: 1.8; }
+  .stat-bar-mini {
+    display: flex; align-items: center; gap: 6px; justify-content: center; margin: 3px 0;
+  }
+  .stat-bar-mini span:first-child { width: 30px; text-align: right; }
+  .mini-bar { height: 5px; background: #1a0800; border-radius: 3px; flex: 1; max-width: 80px; overflow: hidden; }
+  .mini-bar-fill { height: 100%; border-radius: 3px; transition: width 0.4s; }
+
+  /* ═══ HUD ═══ */
+  #hud {
+    display: none;
+    grid-template-columns: 1fr auto 1fr;
+    gap: 12px;
+    align-items: start;
+  }
+  #hud.active { display: grid; }
+
+  .hud-entity {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .entity-name {
+    font-family: 'Cinzel', serif;
+    font-weight: 700;
+    font-size: 1rem;
+    color: var(--gold);
+    text-shadow: 0 0 10px rgba(240,192,64,0.3);
+  }
+  .entity-class { font-size: 0.8rem; color: var(--gold-dim); font-style: italic; }
+  .entity-level { font-size: 0.75rem; color: #907060; }
+
+  .stat-row { display: flex; flex-direction: column; gap: 5px; }
+  .stat-label { font-size: 0.72rem; letter-spacing: 1px; color: #706050; display: flex; justify-content: space-between; }
+  .bar-track {
+    height: 10px; background: #0a0500; border-radius: 5px; overflow: hidden;
+    border: 1px solid rgba(255,255,255,0.05);
+  }
+  .bar-fill { height: 100%; border-radius: 5px; transition: width 0.6s ease; position: relative; }
+  .bar-fill.hp { background: linear-gradient(90deg, #1a6b1a, var(--hp-green)); box-shadow: 0 0 8px rgba(46,204,113,0.4); }
+  .bar-fill.mp { background: linear-gradient(90deg, #1a3a6b, var(--mp-blue)); box-shadow: 0 0 8px rgba(52,152,219,0.4); }
+  .bar-fill.xp { background: linear-gradient(90deg, #6b4a1a, var(--xp-gold)); }
+
+  .vs-badge {
+    font-family: 'Cinzel', serif;
+    font-size: 1.4rem;
+    font-weight: 900;
+    color: var(--crimson);
+    text-align: center;
+    text-shadow: 0 0 20px rgba(192,57,43,0.6);
+    padding-top: 8px;
+    align-self: center;
+  }
+
+  .enemy-side { text-align: right; }
+
+  /* ═══ BATTLE LOG ═══ */
+  #log-panel { flex: 1; }
+  #log {
+    height: 240px;
+    overflow-y: auto;
+    padding: 8px 4px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
+  }
+  #log::-webkit-scrollbar { width: 4px; }
+  #log::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+  .log-entry {
+    padding: 4px 8px;
+    border-radius: 3px;
+    font-size: 0.92rem;
+    line-height: 1.5;
+    animation: slideIn 0.2s ease;
+    border-left: 3px solid transparent;
+  }
+  .log-entry.player  { border-left-color: var(--gold); color: #e8d5a0; }
+  .log-entry.enemy   { border-left-color: var(--crimson); color: #e8a090; }
+  .log-entry.system  { border-left-color: var(--sapphire); color: #90a8e0; font-style: italic; }
+  .log-entry.success { border-left-color: var(--hp-green); color: #90e0a8; }
+  .log-entry.warning { border-left-color: var(--xp-gold); color: #e0c890; }
+  .log-entry.critical { border-left-color: #ff6b6b; color: #ff9b9b; font-weight: 600; }
+
+  /* ═══ ACTIONS ═══ */
+  #actions-panel { }
+  .action-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 10px;
+  }
+  .action-btn {
+    background: rgba(20,10,0,0.9);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 12px 8px;
+    color: var(--parchment);
+    font-family: 'Crimson Text', serif;
+    font-size: 0.95rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    position: relative;
+    overflow: hidden;
+  }
+  .action-btn::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, rgba(240,192,64,0.0), rgba(240,192,64,0.05));
+    opacity: 0;
+    transition: opacity 0.2s;
+  }
+  .action-btn:hover:not(:disabled) { border-color: var(--gold); color: var(--gold); transform: translateY(-2px); box-shadow: 0 4px 15px rgba(0,0,0,0.5); }
+  .action-btn:hover:not(:disabled)::after { opacity: 1; }
+  .action-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+  .action-btn:active:not(:disabled) { transform: translateY(0); }
+  .action-icon { font-size: 1.6rem; }
+  .action-name { font-size: 0.88rem; font-weight: 600; }
+  .action-cost { font-size: 0.72rem; color: var(--mp-blue); opacity: 0.8; }
+
+  /* ═══ INVENTORY / SHOP ═══ */
+  .item-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 10px;
+    border-radius: 4px;
+    border: 1px solid transparent;
+    transition: border-color 0.2s;
+    cursor: pointer;
+  }
+  .item-row:hover { border-color: var(--border); }
+  .item-icon { font-size: 1.4rem; }
+  .item-name { flex: 1; font-size: 0.9rem; }
+  .item-count { font-size: 0.8rem; color: var(--gold-dim); }
+
+  /* ═══ BOTTOM ROW ═══ */
+  .bottom-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+  }
+
+  /* ═══ SCREEN OVERLAYS ═══ */
+  .overlay {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.85);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 100;
+    animation: fadeIn 0.3s ease;
+  }
+  .overlay-box {
+    background: #0f0800;
+    border: 2px solid var(--gold);
+    border-radius: 8px;
+    padding: 40px;
+    text-align: center;
+    max-width: 440px;
+    box-shadow: 0 0 60px rgba(240,192,64,0.2);
+    animation: scaleIn 0.4s ease;
+  }
+  .overlay-title { font-family: 'Cinzel', serif; font-size: 2rem; font-weight: 900; margin-bottom: 12px; }
+  .overlay-title.victory { color: var(--gold); text-shadow: 0 0 20px rgba(240,192,64,0.5); }
+  .overlay-title.defeat  { color: var(--crimson); text-shadow: 0 0 20px rgba(192,57,43,0.5); }
+  .overlay-desc { color: #c0a880; margin: 10px 0 24px; line-height: 1.6; font-size: 1rem; }
+  .overlay-rewards { color: var(--gold); margin-bottom: 20px; font-size: 0.95rem; line-height: 1.8; }
+
+  /* ═══ BUTTONS ═══ */
+  .btn {
+    background: linear-gradient(135deg, #3a2000, #2a1500);
+    border: 1px solid var(--gold-dim);
+    border-radius: 4px;
+    color: var(--gold);
+    font-family: 'Cinzel', serif;
+    font-size: 0.9rem;
+    letter-spacing: 1px;
+    padding: 10px 24px;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-transform: uppercase;
+  }
+  .btn:hover { background: linear-gradient(135deg, #5a3000, #3a2000); border-color: var(--gold); box-shadow: 0 0 15px rgba(240,192,64,0.2); }
+  .btn.danger { border-color: var(--crimson); color: var(--crimson); background: linear-gradient(135deg, #200a0a, #180505); }
+  .btn.danger:hover { background: linear-gradient(135deg, #401010, #280808); }
+
+  /* ═══ DUNGEON MAP ═══ */
+  .floor-indicator {
+    font-family: 'Cinzel', serif;
+    text-align: center;
+    font-size: 0.85rem;
+    color: var(--gold-dim);
+    letter-spacing: 2px;
+  }
+  .floor-dots {
+    display: flex; gap: 6px; justify-content: center; margin-top: 8px; flex-wrap: wrap;
+  }
+  .floor-dot {
+    width: 12px; height: 12px; border-radius: 50%;
+    border: 1px solid var(--border);
+    background: #1a0a00;
+    transition: all 0.3s;
+  }
+  .floor-dot.done { background: var(--gold-dim); border-color: var(--gold); }
+  .floor-dot.current { background: var(--crimson); border-color: #ff6b6b; box-shadow: 0 0 8px rgba(255,107,107,0.5); animation: pulse 1.5s infinite; }
+  .floor-dot.boss { border-color: var(--crimson); }
+
+  /* ═══ ANIMATIONS ═══ */
+  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes slideIn { from { opacity: 0; transform: translateX(-10px); } to { opacity: 1; transform: translateX(0); } }
+  @keyframes scaleIn { from { opacity: 0; transform: scale(0.9); } to { opacity: 1; transform: scale(1); } }
+  @keyframes pulse { 0%,100% { box-shadow: 0 0 8px rgba(255,107,107,0.5); } 50% { box-shadow: 0 0 16px rgba(255,107,107,0.9); } }
+  @keyframes shake { 0%,100% { transform: translateX(0); } 20%,60% { transform: translateX(-6px); } 40%,80% { transform: translateX(6px); } }
+  @keyframes glow { 0%,100% { text-shadow: 0 0 10px rgba(240,192,64,0.3); } 50% { text-shadow: 0 0 25px rgba(240,192,64,0.7); } }
+
+  .shake { animation: shake 0.4s ease; }
+  .level-up-flash { animation: glow 0.6s ease 3; }
+
+  .loading-dots::after {
+    content: '';
+    animation: dots 1.2s steps(4, end) infinite;
+  }
+  @keyframes dots {
+    0%   { content: ''; }
+    25%  { content: '.'; }
+    50%  { content: '..'; }
+    75%  { content: '...'; }
+  }
+
+  /* ═══ STATUS EFFECTS ═══ */
+  .status-effects { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
+  .status-badge {
+    font-size: 0.7rem; padding: 2px 7px; border-radius: 10px;
+    border: 1px solid;
+    display: flex; align-items: center; gap: 3px;
+    animation: fadeIn 0.3s ease;
+  }
+  .status-badge.poison { border-color: #6b3d8b; color: #c090e0; background: rgba(107,61,139,0.2); }
+  .status-badge.burn   { border-color: #8b3d1a; color: #e09050; background: rgba(139,61,26,0.2); }
+  .status-badge.shield { border-color: #3d6b8b; color: #90c0e0; background: rgba(61,107,139,0.2); }
+  .status-badge.stun   { border-color: #8b8b1a; color: #e0e050; background: rgba(139,139,26,0.2); }
+  .status-badge.regen  { border-color: #1a6b3a; color: #60c080; background: rgba(26,107,58,0.2); }
+
+  /* ═══ TOOLTIP ═══ */
+  [data-tip] { position: relative; }
+  [data-tip]:hover::after {
+    content: attr(data-tip);
+    position: absolute;
+    bottom: 110%; left: 50%; transform: translateX(-50%);
+    background: #1a0a00;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 6px 10px;
+    font-size: 0.78rem;
+    color: #c0a880;
+    white-space: nowrap;
+    z-index: 50;
+    pointer-events: none;
+    font-family: 'Crimson Text', serif;
+  }
+
+  /* ═══ RESPONSIVE ═══ */
+  @media (max-width: 640px) {
+    #hud { grid-template-columns: 1fr 1fr; }
+    .vs-badge { display: none; }
+    .bottom-row { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+<div id="app">
+
+  <div>
+    <div class="game-title">⚔️ Realm of Async ⚔️</div>
+    <div class="game-subtitle">~ Un Dungeon RPG en JavaScript ~</div>
+  </div>
+
+  <!-- CHARACTER SELECT -->
+  <div class="panel" id="char-select">
+    <div class="panel-title">◈ Elige tu clase de héroe ◈</div>
+    <div class="class-grid" id="class-grid"></div>
+  </div>
+
+  <!-- HUD -->
+  <div class="panel" id="hud">
+    <div class="hud-entity" id="player-hud">
+      <div>
+        <div class="entity-name" id="p-name">—</div>
+        <div class="entity-class" id="p-class">—</div>
+        <div class="entity-level" id="p-level">Nivel 1</div>
+      </div>
+      <div class="stat-row">
+        <div class="stat-label"><span>❤️ HP</span><span id="p-hp-txt">—</span></div>
+        <div class="bar-track"><div class="bar-fill hp" id="p-hp-bar" style="width:100%"></div></div>
+      </div>
+      <div class="stat-row">
+        <div class="stat-label"><span>💧 MP</span><span id="p-mp-txt">—</span></div>
+        <div class="bar-track"><div class="bar-fill mp" id="p-mp-bar" style="width:100%"></div></div>
+      </div>
+      <div class="stat-row">
+        <div class="stat-label"><span>✨ XP</span><span id="p-xp-txt">—</span></div>
+        <div class="bar-track"><div class="bar-fill xp" id="p-xp-bar" style="width:0%"></div></div>
+      </div>
+      <div class="status-effects" id="p-status"></div>
+    </div>
+
+    <div class="vs-badge">⚔<br>VS<br>⚔</div>
+
+    <div class="hud-entity enemy-side" id="enemy-hud">
+      <div>
+        <div class="entity-name" id="e-name">—</div>
+        <div class="entity-class" id="e-class">—</div>
+        <div class="entity-level" id="e-level">—</div>
+      </div>
+      <div class="stat-row">
+        <div class="stat-label"><span id="e-hp-txt">—</span><span>❤️ HP</span></div>
+        <div class="bar-track"><div class="bar-fill hp" id="e-hp-bar" style="width:100%"></div></div>
+      </div>
+      <div class="status-effects" id="e-status" style="justify-content:flex-end"></div>
+    </div>
+  </div>
+
+  <!-- FLOOR MAP -->
+  <div class="panel" id="floor-panel" style="display:none">
+    <div class="floor-indicator" id="floor-text">Piso 1 de 8</div>
+    <div class="floor-dots" id="floor-dots"></div>
+  </div>
+
+  <!-- BATTLE LOG -->
+  <div class="panel" id="log-panel" style="display:none">
+    <div class="panel-title">◈ Crónica de Batalla ◈</div>
+    <div id="log"></div>
+  </div>
+
+  <!-- ACTIONS -->
+  <div class="panel" id="actions-panel" style="display:none">
+    <div class="panel-title">◈ Acciones ◈</div>
+    <div class="action-grid" id="action-grid"></div>
+  </div>
+
+  <!-- BOTTOM ROW -->
+  <div class="bottom-row" id="bottom-row" style="display:none">
+    <!-- INVENTORY -->
+    <div class="panel">
+      <div class="panel-title">◈ Inventario ◈</div>
+      <div id="inventory-list"></div>
+    </div>
+    <!-- STATS -->
+    <div class="panel">
+      <div class="panel-title">◈ Atributos ◈</div>
+      <div id="attr-list" style="font-size:0.88rem;line-height:2;"></div>
+    </div>
+  </div>
+
+</div>
+
+<!-- OVERLAYS -->
+<div id="overlay" class="overlay" style="display:none">
+  <div class="overlay-box">
+    <div class="overlay-title" id="ov-title"></div>
+    <div class="overlay-desc" id="ov-desc"></div>
+    <div class="overlay-rewards" id="ov-rewards"></div>
+    <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap">
+      <button class="btn" id="ov-btn1"></button>
+      <button class="btn danger" id="ov-btn2" style="display:none"></button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════
+//  UTILIDADES ASÍNCRONAS
+// ═══════════════════════════════════════════════════════
+
+/** Espera N milisegundos (asincronismo puro con Promise) */
+const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
+
+/** Genera número entero aleatorio [min, max] */
+const rand = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
+
+/** Genera flotante aleatorio [0, 1) */
+const chance = p => Math.random() < p;
+
+// ═══════════════════════════════════════════════════════
+//  CLASE BASE: Entity (POO, Clase, instancia, get/set)
+// ═══════════════════════════════════════════════════════
+
+class Entity {
+  #name;          // campo privado
+  #maxHp;
+  #hp;
+  #statusEffects; // array de objetos
+
+  constructor(name, hp) {
+    this.#name = name;
+    this.#maxHp = hp;
+    this.#hp = hp;
+    this.#statusEffects = [];
+  }
+
+  // GET / SET
+  get name()   { return this.#name; }
+  get hp()     { return this.#hp; }
+  get maxHp()  { return this.#maxHp; }
+  get isDead() { return this.#hp <= 0; }
+  get statuses(){ return [...this.#statusEffects]; }
+
+  set hp(val) {
+    this.#hp = Math.max(0, Math.min(val, this.#maxHp));
+  }
+  set maxHp(val) {
+    this.#maxHp = val;
+    this.#hp = Math.min(this.#hp, val);
+  }
+
+  get hpPercent() { return (this.#hp / this.#maxHp) * 100; }
+
+  addStatus(effect) {
+    const existing = this.#statusEffects.find(e => e.name === effect.name);
+    if (existing) { existing.turns = effect.turns; return; }
+    this.#statusEffects.push({ ...effect });
+  }
+
+  removeStatus(name) {
+    this.#statusEffects = this.#statusEffects.filter(e => e.name !== name);
+  }
+
+  hasStatus(name) { return this.#statusEffects.some(e => e.name === name); }
+
+  tickStatuses() {
+    const msgs = [];
+    this.#statusEffects = this.#statusEffects.filter(eff => {
+      if (eff.name === 'poison') {
+        const dmg = Math.floor(this.#maxHp * 0.06);
+        this.hp = this.#hp - dmg;
+        msgs.push({ text: `☠️ ${this.#name} sufre ${dmg} de veneno.`, type: 'enemy' });
+      }
+      if (eff.name === 'burn') {
+        const dmg = Math.floor(this.#maxHp * 0.04);
+        this.hp = this.#hp - dmg;
+        msgs.push({ text: `🔥 ${this.#name} sufre ${dmg} por quemadura.`, type: 'enemy' });
+      }
+      if (eff.name === 'regen') {
+        const heal = Math.floor(this.#maxHp * 0.05);
+        this.hp = this.#hp + heal;
+        msgs.push({ text: `💚 ${this.#name} regenera ${heal} HP.`, type: 'success' });
+      }
+      eff.turns--;
+      return eff.turns > 0;
+    });
+    return msgs;
+  }
+
+  // Método polimórfico base
+  toString() { return `${this.#name} [${this.#hp}/${this.#maxHp} HP]`; }
+}
+
+// ═══════════════════════════════════════════════════════
+//  CLASE: Player (Herencia de Entity)
+// ═══════════════════════════════════════════════════════
+
+class Player extends Entity {
+  static XP_TABLE = [0, 50, 130, 250, 420, 650, 950, 1320, 1760, 9999]; // static
+  static BASE_STATS = { warrior: { atk:18, def:12, mag:5, spd:8 },
+                         mage:    { atk:7,  def:6,  mag:22, spd:10 },
+                         rogue:   { atk:14, def:8,  mag:8,  spd:16 },
+                         paladin: { atk:12, def:16, mag:10, spd:7  } };
+
+  #mp; #maxMp; #xp; #level; #className; #atk; #def; #mag; #spd;
+  inventory; gold;
+
+  constructor(name, className) {
+    const hpMap = { warrior:120, mage:80, rogue:95, paladin:110 };
+    const mpMap = { warrior:40,  mage:100, rogue:60, paladin:80 };
+    super(name, hpMap[className]);
+    this.#className = className;
+    this.#maxMp = mpMap[className];
+    this.#mp = this.#maxMp;
+    this.#xp = 0;
+    this.#level = 1;
+    const s = Player.BASE_STATS[className];
+    this.#atk = s.atk; this.#def = s.def;
+    this.#mag = s.mag; this.#spd = s.spd;
+    this.inventory = [
+      { id:'potion', name:'Poción', icon:'🧪', count:3, desc:'Restaura 40 HP' },
+      { id:'elixir', name:'Elixir',  icon:'💧', count:1, desc:'Restaura 30 MP' },
+    ];
+    this.gold = 20;
+  }
+
+  // GET-SET de MP y nivel
+  get mp()     { return this.#mp; }
+  get maxMp()  { return this.#maxMp; }
+  get level()  { return this.#level; }
+  get className() { return this.#className; }
+  get atk() { return this.#atk; }
+  get def() { return this.#def; }
+  get mag() { return this.#mag; }
+  get spd() { return this.#spd; }
+  get xp()     { return this.#xp; }
+  get xpNext() { return Player.XP_TABLE[this.#level] || 9999; }
+  get xpPercent() { return Math.min((this.#xp / this.xpNext) * 100, 100); }
+  get mpPercent() { return (this.#mp / this.#maxMp) * 100; }
+
+  set mp(val)  { this.#mp = Math.max(0, Math.min(val, this.#maxMp)); }
+
+  /** Añade XP y retorna si subió de nivel */
+  gainXP(amount) {
+    this.#xp += amount;
+    if (this.#xp >= this.xpNext && this.#level < 9) {
+      this.#xp -= this.xpNext;
+      this.#level++;
+      this.#levelUp();
+      return true;
+    }
+    return false;
+  }
+
+  #levelUp() {
+    const gains = { warrior:{hp:18,mp:5,atk:3,def:2,mag:1,spd:1},
+                    mage:   {hp:10,mp:18,atk:1,def:1,mag:4,spd:1},
+                    rogue:  {hp:14,mp:8,atk:2,def:1,mag:1,spd:3},
+                    paladin:{hp:16,mp:10,atk:2,def:3,mag:2,spd:1} };
+    const g = gains[this.#className];
+    this.maxHp = this.maxHp + g.hp;
+    this.hp = this.hp + g.hp;
+    this.#maxMp += g.mp; this.#mp += g.mp;
+    this.#atk += g.atk; this.#def += g.def;
+    this.#mag += g.mag; this.#spd += g.spd;
+  }
+
+  useItem(id) {
+    const item = this.inventory.find(i => i.id === id);
+    if (!item || item.count <= 0) return null;
+    item.count--;
+    if (id === 'potion') { const h = 40; this.hp = this.hp + h; return `🧪 Usas una Poción y recuperas ${h} HP.`; }
+    if (id === 'elixir') { const m = 30; this.mp = this.mp + m; return `💧 Usas un Élixir y recuperas ${m} MP.`; }
+    return null;
+  }
+
+  calcDamage(skill, enemy) {
+    const base = skill.type === 'physical' ? this.#atk : this.#mag;
+    const mult = skill.power;
+    const raw = Math.floor(base * mult * (rand(85,115) / 100));
+    const reduced = skill.type === 'physical'
+      ? Math.max(1, raw - Math.floor(enemy.def * 0.5))
+      : Math.max(1, raw - Math.floor(enemy.def * 0.2));
+    const crit = chance(0.12 + this.#spd * 0.005);
+    return { dmg: crit ? Math.floor(reduced * 1.7) : reduced, crit };
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+//  CLASE: Enemy (Herencia de Entity)
+// ═══════════════════════════════════════════════════════
+
+class Enemy extends Entity {
+  #atk; #def; #xpReward; #goldReward; #tier;
+  abilities; icon;
+
+  constructor(data) {
+    super(data.name, data.hp);
+    this.#atk = data.atk; this.#def = data.def;
+    this.#xpReward = data.xp; this.#goldReward = data.gold;
+    this.#tier = data.tier || 'normal';
+    this.abilities = data.abilities || [];
+    this.icon = data.icon || '👾';
+  }
+
+  get atk()   { return this.#atk; }
+  get def()   { return this.#def; }
+  get xpReward() { return this.#xpReward; }
+  get goldReward() { return this.#goldReward; }
+  get tier()  { return this.#tier; }
+
+  /** IA del enemigo: elige acción aleatoria */
+  chooseAction() {
+    if (this.abilities.length === 0) return { name: 'Golpe', power: 1.0, effect: null };
+    return this.abilities[rand(0, this.abilities.length - 1)];
+  }
+
+  calcDamage(action) {
+    const raw = Math.floor(this.#atk * action.power * (rand(85,115)/100));
+    const crit = chance(0.08);
+    return { dmg: crit ? Math.floor(raw * 1.5) : raw, crit };
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+//  DATOS: Clases, Enemigos, Habilidades, Pisos
+// ═══════════════════════════════════════════════════════
+
+const CLASS_DATA = [
+  { id:'warrior', icon:'⚔️', name:'Guerrero', desc:'Domina el acero y la fuerza bruta.',
+    stats:'ATK:18 DEF:12 MAG:5 VEL:8', barW:[90,60,25,40],
+    skills: ['attack','heavyBlow','battleCry','block'] },
+  { id:'mage', icon:'🔮', name:'Mago', desc:'Tejedor de arcanos y caos elemental.',
+    stats:'ATK:7 DEF:6 MAG:22 VEL:10', barW:[35,30,100,50],
+    skills: ['attack','fireball','thunder','iceWall'] },
+  { id:'rogue', icon:'🗡️', name:'Pícaro', desc:'Sombras, veneno y golpes certeros.',
+    stats:'ATK:14 DEF:8 MAG:8 VEL:16', barW:[70,40,40,80],
+    skills: ['attack','backstab','poison','evade'] },
+  { id:'paladin', icon:'🛡️', name:'Paladín', desc:'Luz sagrada y escudo irrompible.',
+    stats:'ATK:12 DEF:16 MAG:10 VEL:7', barW:[60,80,50,35],
+    skills: ['attack','smite','holyLight','divineShield'] },
+];
+
+const SKILLS = {
+  attack:      { name:'Atacar',       icon:'⚔️',  cost:0,  power:1.0, type:'physical', effect:null,      desc:'Ataque básico físico' },
+  heavyBlow:   { name:'Golpe Brutal', icon:'🔨',  cost:12, power:1.8, type:'physical', effect:null,      desc:'Daño masivo (×1.8)' },
+  battleCry:   { name:'Grito Guerra', icon:'📢',  cost:15, power:0,   type:'buff',     effect:'battleCry',desc:'+30% ATK por 2 turnos' },
+  block:       { name:'Bloquear',     icon:'🛡️',  cost:10, power:0,   type:'buff',     effect:'shield',   desc:'Reduce daño recibido' },
+  fireball:    { name:'Bola de Fuego',icon:'🔥',  cost:18, power:2.0, type:'magic',    effect:'burn',     desc:'Daño mágico + quemadura' },
+  thunder:     { name:'Trueno',       icon:'⚡',  cost:22, power:2.4, type:'magic',    effect:'stun',     desc:'Daño mágico + aturde' },
+  iceWall:     { name:'Muro de Hielo',icon:'❄️',  cost:20, power:1.4, type:'magic',    effect:'shield',   desc:'Escudo de hielo' },
+  backstab:    { name:'Apuñalar',     icon:'🗡️',  cost:14, power:2.1, type:'physical', effect:null,       desc:'Daño crítico alto' },
+  poison:      { name:'Envenenar',    icon:'☠️',  cost:16, power:0.8, type:'magic',    effect:'poison',   desc:'Envenenamiento 3 turnos' },
+  evade:       { name:'Evadir',       icon:'💨',  cost:10, power:0,   type:'buff',     effect:'evade',    desc:'Alta evasión 1 turno' },
+  smite:       { name:'Castigo',      icon:'✨',  cost:18, power:1.7, type:'magic',    effect:null,       desc:'Daño sagrado (ignora DEF)' },
+  holyLight:   { name:'Luz Sagrada',  icon:'💛',  cost:20, power:0,   type:'heal',     effect:'regen',    desc:'Cura y regeneración' },
+  divineShield:{ name:'Escudo Divino',icon:'🌟',  cost:25, power:0,   type:'buff',     effect:'shield',   desc:'Escudo poderoso + DEF alta' },
+};
+
+const ENEMY_POOL = [
+  // Piso 1-2
+  { name:'Goblin', icon:'👺', hp:45, atk:10, def:4, xp:18, gold:8, tier:'normal',
+    abilities:[{name:'Mordisco',power:0.9,effect:null},{name:'Arañazo',power:1.1,effect:null}] },
+  { name:'Lobo Oscuro', icon:'🐺', hp:55, atk:13, def:5, xp:22, gold:10, tier:'normal',
+    abilities:[{name:'Mordida',power:1.0,effect:null},{name:'Aullido',power:0.6,effect:'stun'}] },
+  { name:'Esqueleto', icon:'💀', hp:50, atk:11, def:8, xp:20, gold:9, tier:'normal',
+    abilities:[{name:'Hacha Ósea',power:1.0,effect:null}] },
+  // Piso 3-4
+  { name:'Orco Salvaje', icon:'👹', hp:80, atk:17, def:8, xp:35, gold:15, tier:'normal',
+    abilities:[{name:'Aplastamiento',power:1.3,effect:null},{name:'Frenesí',power:0.9,effect:null}] },
+  { name:'Hechicero Oscuro', icon:'🧙', hp:65, atk:14, def:6, xp:40, gold:18, tier:'normal',
+    abilities:[{name:'Rayo Negro',power:1.2,effect:'burn'},{name:'Maldición',power:0.8,effect:'poison'}] },
+  { name:'Golem de Piedra', icon:'🗿', hp:100, atk:15, def:14, xp:38, gold:16, tier:'normal',
+    abilities:[{name:'Puñetazo',power:1.1,effect:null},{name:'Pisotón',power:1.4,effect:'stun'}] },
+  // Piso 5-6
+  { name:'Vampiro Noble', icon:'🧛', hp:95, atk:20, def:10, xp:55, gold:25, tier:'elite',
+    abilities:[{name:'Drenaje',power:1.0,effect:null},{name:'Hipnosis',power:0.5,effect:'stun'},{name:'Mordida Mortal',power:1.6,effect:null}] },
+  { name:'Hidra Venenosa', icon:'🐉', hp:110, atk:18, def:9, xp:60, gold:28, tier:'elite',
+    abilities:[{name:'Mordisco Triple',power:1.2,effect:null},{name:'Veneno Ácido',power:0.9,effect:'poison'}] },
+  // Piso 7 - sub-jefe
+  { name:'Lich Anciano', icon:'💎', hp:140, atk:22, def:12, xp:80, gold:40, tier:'miniboss',
+    abilities:[{name:'Toque de Muerte',power:1.3,effect:'poison'},{name:'Vórtice Oscuro',power:1.8,effect:null},{name:'Drenar Vida',power:1.1,effect:null}] },
+  // Piso 8 - BOSS
+  { name:'Señor Oscuro Malachar', icon:'👑', hp:200, atk:28, def:15, xp:150, gold:80, tier:'boss',
+    abilities:[{name:'Tormento',power:1.4,effect:'burn'},{name:'Espada Maldita',power:1.8,effect:null},{name:'Aura Oscura',power:1.2,effect:'poison'},{name:'Golpe Demoledor',power:2.2,effect:'stun'}] },
+];
+
+const FLOORS = 8;
+// ═══════════════════════════════════════════════════════
+//  GESTOR DE UI (Objeto con métodos, no clase)
+// ═══════════════════════════════════════════════════════
+
+const UI = {
+  logEl: null,
+
+  init() { this.logEl = document.getElementById('log'); },
+
+  async log(text, type = 'system', ms = 60) {
+    const entry = document.createElement('div');
+    entry.className = `log-entry ${type}`;
+    entry.textContent = text;
+    this.logEl.appendChild(entry);
+    this.logEl.scrollTop = this.logEl.scrollHeight;
+    await delay(ms);
+  },
+
+  updatePlayer(player) {
+    document.getElementById('p-name').textContent = player.name;
+    document.getElementById('p-class').textContent = `✦ ${CLASS_DATA.find(c=>c.id===player.className).name} ✦`;
+    document.getElementById('p-level').textContent = `Nivel ${player.level} — Próximo: ${player.xpNext - player.xp} XP`;
+    document.getElementById('p-hp-txt').textContent = `${player.hp}/${player.maxHp}`;
+    document.getElementById('p-mp-txt').textContent = `${player.mp}/${player.maxMp}`;
+    document.getElementById('p-xp-txt').textContent = `${player.xp}/${player.xpNext}`;
+    document.getElementById('p-hp-bar').style.width = player.hpPercent + '%';
+    document.getElementById('p-mp-bar').style.width = player.mpPercent + '%';
+    document.getElementById('p-xp-bar').style.width = player.xpPercent + '%';
+    this.renderStatuses('p-status', player.statuses);
+    this.renderAttrs(player);
+    this.renderInventory(player);
+  },
+
+  updateEnemy(enemy) {
+    document.getElementById('e-name').textContent = `${enemy.icon} ${enemy.name}`;
+    const tierLabel = {normal:'Normal',elite:'⚡ Élite',miniboss:'💀 Sub-Jefe',boss:'👑 JEFE FINAL'};
+    document.getElementById('e-class').textContent = tierLabel[enemy.tier] || 'Normal';
+    document.getElementById('e-level').textContent = `HP: ${enemy.hp}/${enemy.maxHp}`;
+    document.getElementById('e-hp-bar').style.width = enemy.hpPercent + '%';
+    document.getElementById('e-hp-txt').textContent = `${enemy.hp}/${enemy.maxHp}`;
+    this.renderStatuses('e-status', enemy.statuses);
+  },
+
+  renderStatuses(elId, statuses) {
+    const el = document.getElementById(elId);
+    const icons = { poison:'☠️', burn:'🔥', shield:'🛡️', stun:'⚡', regen:'💚', evade:'💨', battleCry:'📢' };
+    el.innerHTML = statuses.map(s =>
+      `<span class="status-badge ${s.name}">${icons[s.name]||'?'} ${s.name} (${s.turns})</span>`
+    ).join('');
+  },
+
+  renderAttrs(player) {
+    document.getElementById('attr-list').innerHTML =
+      `⚔️ ATK: ${player.atk} &nbsp; 🛡️ DEF: ${player.def}<br>
+       🔮 MAG: ${player.mag} &nbsp; 💨 VEL: ${player.spd}<br>
+       💰 Oro: ${player.gold}`;
+  },
+
+  renderInventory(player) {
+    document.getElementById('inventory-list').innerHTML = player.inventory
+      .filter(i => i.count > 0)
+      .map(i => `<div class="item-row" onclick="game.useItemInBattle('${i.id}')">
+        <span class="item-icon">${i.icon}</span>
+        <span class="item-name">${i.name} <small style="color:#706050">(${i.desc})</small></span>
+        <span class="item-count">×${i.count}</span>
+      </div>`).join('') || `<div style="color:#504030;font-style:italic;font-size:0.85rem;padding:8px">Sin objetos.</div>`;
+  },
+
+  renderActions(skills, player, disabled) {
+    document.getElementById('action-grid').innerHTML = skills.map(id => {
+      const s = SKILLS[id];
+      const canAfford = s.cost === 0 || player.mp >= s.cost;
+      const dis = disabled || !canAfford ? 'disabled' : '';
+      return `<button class="action-btn" ${dis} data-tip="${s.desc}" onclick="game.doPlayerAction('${id}')">
+        <span class="action-icon">${s.icon}</span>
+        <span class="action-name">${s.name}</span>
+        ${s.cost > 0 ? `<span class="action-cost">💧 ${s.cost} MP</span>` : ''}
+      </button>`;
+    }).join('');
+  },
+
+  setActionsDisabled(dis) {
+    document.querySelectorAll('.action-btn').forEach(b => b.disabled = dis);
+  },
+
+  renderFloor(current) {
+    document.getElementById('floor-text').textContent = `Piso ${current} de ${FLOORS}`;
+    const dots = document.getElementById('floor-dots');
+    dots.innerHTML = Array.from({length: FLOORS}, (_, i) => {
+      const f = i + 1;
+      const isBoss = f === FLOORS;
+      const isDone = f < current;
+      const isCurrent = f === current;
+      return `<div class="floor-dot ${isBoss?'boss':''} ${isDone?'done':''} ${isCurrent?'current':''}" 
+        title="${isBoss?'👑 Jefe Final':'Piso '+f}"></div>`;
+    }).join('');
+  },
+
+  showOverlay({ title, titleClass='victory', desc, rewards='', btn1='Continuar', btn2=null, cb1, cb2 }) {
+    document.getElementById('ov-title').textContent = title;
+    document.getElementById('ov-title').className = `overlay-title ${titleClass}`;
+    document.getElementById('ov-desc').textContent = desc;
+    document.getElementById('ov-rewards').innerHTML = rewards;
+    const b1 = document.getElementById('ov-btn1');
+    b1.textContent = btn1; b1.onclick = () => { this.hideOverlay(); cb1&&cb1(); };
+    const b2 = document.getElementById('ov-btn2');
+    if (btn2) { b2.style.display=''; b2.textContent=btn2; b2.onclick=()=>{ this.hideOverlay(); cb2&&cb2(); }; }
+    else b2.style.display='none';
+    document.getElementById('overlay').style.display='flex';
+  },
+
+  hideOverlay() { document.getElementById('overlay').style.display='none'; },
+
+  shakeEl(id) {
+    const el = document.getElementById(id);
+    el.classList.add('shake');
+    setTimeout(()=>el.classList.remove('shake'), 400);
+  },
+};
+
+// ═══════════════════════════════════════════════════════
+//  GESTOR DEL JUEGO (objeto principal, usa async/await)
+// ═══════════════════════════════════════════════════════
+
+const game = {
+  player: null,
+  enemy: null,
+  currentFloor: 1,
+  playerSkills: [],
+  battleActive: false,
+  playerTurn: true,
+
+  // ─── INICIO ───────────────────────────────────────
+
+  init() {
+    UI.init();
+    this.renderCharSelect();
+  },
+
+  renderCharSelect() {
+    document.getElementById('char-select').style.display='';
+    const grid = document.getElementById('class-grid');
+    grid.innerHTML = CLASS_DATA.map(c => `
+      <div class="class-card ${c.id}" onclick="game.selectClass('${c.id}')">
+        <span class="class-icon">${c.icon}</span>
+        <div class="class-name">${c.name}</div>
+        <div class="class-desc">${c.desc}</div>
+        <div>
+          ${['ATK','DEF','MAG','VEL'].map((stat,i)=>`
+            <div class="stat-bar-mini">
+              <span>${stat}</span>
+              <div class="mini-bar">
+                <div class="mini-bar-fill" style="width:${c.barW[i]}%;background:${['#c0392b','#2980b9','#8e44ad','#27ae60'][i]}"></div>
+              </div>
+            </div>`).join('')}
+        </div>
+      </div>`).join('');
+  },
+
+  selectClass(className) {
+    const name = ['Aranor','Lyria','Kael','Theron'][Math.floor(Math.random()*4)];
+    this.player = new Player(name, className);
+    this.playerSkills = CLASS_DATA.find(c=>c.id===className).skills;
+    this.currentFloor = 1;
+    document.getElementById('char-select').style.display='none';
+    document.getElementById('hud').classList.add('active');
+    document.getElementById('floor-panel').style.display='';
+    document.getElementById('log-panel').style.display='';
+    document.getElementById('actions-panel').style.display='';
+    document.getElementById('bottom-row').style.display='';
+    this.startDungeon();
+  },
+
+  // ─── DUNGEON LOOP (asincronismo) ──────────────────
+
+  async startDungeon() {
+    UI.renderFloor(this.currentFloor);
+    await UI.log(`🏰 ${this.player.name} entra al Castillo Malachar...`, 'system', 100);
+    await delay(300);
+    await this.startFloor();
+  },
+
+  async startFloor() {
+    UI.renderFloor(this.currentFloor);
+    const isBoss = this.currentFloor === FLOORS;
+    await UI.log(`── Piso ${this.currentFloor} ──`, 'system', 80);
+
+    if (isBoss) {
+      await UI.log('👑 ¡El Señor Oscuro te aguarda en la sala del trono!', 'warning', 120);
+    } else if (this.currentFloor % 3 === 0) {
+      await this.shopEvent();
+    }
+
+    // Generar enemigo
+    await delay(300);
+    this.enemy = this.spawnEnemy();
+    UI.updateEnemy(this.enemy);
+    await UI.log(`⚠️  ¡Aparece ${this.enemy.icon} ${this.enemy.name}!`, 'enemy', 120);
+    await delay(400);
+    await this.battleLoop();
+  },
+
+  spawnEnemy() {
+    const floor = this.currentFloor;
+    let pool;
+    if (floor === FLOORS) pool = ENEMY_POOL.filter(e=>e.tier==='boss');
+    else if (floor === 7)  pool = ENEMY_POOL.filter(e=>e.tier==='miniboss');
+    else if (floor >= 5)   pool = ENEMY_POOL.filter(e=>['normal','elite'].includes(e.tier)).slice(3);
+    else if (floor >= 3)   pool = ENEMY_POOL.filter(e=>e.tier==='normal').slice(2,6);
+    else                   pool = ENEMY_POOL.filter(e=>e.tier==='normal').slice(0,3);
+    const data = pool[rand(0, pool.length-1)];
+    // Escala el enemigo con el piso
+    const scale = 1 + (floor - 1) * 0.12;
+    return new Enemy({
+      ...data,
+      hp:   Math.floor(data.hp * scale),
+      atk:  Math.floor(data.atk * scale),
+    });
+  },
+
+  // ─── BATTLE LOOP ──────────────────────────────────
+
+  async battleLoop() {
+    this.battleActive = true;
+    UI.updatePlayer(this.player);
+    UI.renderActions(this.playerSkills, this.player, false);
+
+    // El jugador tiene más velocidad → ataca primero
+    this.playerTurn = this.player.spd >= (this.enemy.atk * 0.5);
+
+    if (!this.playerTurn) {
+      await UI.log('⚡ El enemigo actúa primero (más veloz).', 'system');
+      await delay(300);
+      await this.enemyTurn();
+    }
+  },
+
+  async doPlayerAction(skillId) {
+    if (!this.battleActive || !this.playerTurn) return;
+    UI.setActionsDisabled(true);
+    this.playerTurn = false;
+
+    const skill = SKILLS[skillId];
+    if (skill.cost > 0 && this.player.mp < skill.cost) {
+      await UI.log('❌ Maná insuficiente.', 'warning');
+      UI.setActionsDisabled(false); this.playerTurn=true; return;
+    }
+    this.player.mp = this.player.mp - skill.cost;
+
+    await this.executeSkill(skill, this.player, this.enemy);
+    UI.updatePlayer(this.player);
+    UI.updateEnemy(this.enemy);
+
+    if (this.enemy.isDead) { await this.onEnemyDead(); return; }
+
+    await delay(600);
+    await this.enemyTurn();
+  },
+
+  async executeSkill(skill, actor, target) {
+    const isPlayer = actor instanceof Player;
+
+    if (skill.type === 'physical' || skill.type === 'magic') {
+      const { dmg, crit } = isPlayer
+        ? actor.calcDamage(skill, target)
+        : actor.calcDamage(skill);
+      const finalDmg = target.hasStatus('shield') ? Math.floor(dmg * 0.45) : dmg;
+      const shieldMsg = target.hasStatus('shield') ? ' (escudo)' : '';
+
+      target.hp = target.hp - finalDmg;
+      if (isPlayer) UI.shakeEl('enemy-hud'); else UI.shakeEl('player-hud');
+
+      const critText = crit ? ' ✨ ¡CRÍTICO!' : '';
+      const type = isPlayer ? 'player' : (crit ? 'critical' : 'enemy');
+      await UI.log(`${actor.name} usa ${skill.icon} ${skill.name}: ${finalDmg} daño${shieldMsg}${critText}`, type);
+
+      // Efectos de habilidad
+      if (skill.effect === 'burn')   { target.addStatus({name:'burn',  turns:3}); await UI.log('🔥 ¡Quemadura aplicada!','warning'); }
+      if (skill.effect === 'poison') { target.addStatus({name:'poison',turns:3}); await UI.log('☠️  ¡Veneno aplicado!',  'warning'); }
+      if (skill.effect === 'stun')   { target.addStatus({name:'stun',  turns:1}); await UI.log('⚡ ¡Aturdido!',         'warning'); }
+
+    } else if (skill.type === 'buff') {
+      if (skill.effect === 'shield')    { actor.addStatus({name:'shield',turns:2});    await UI.log(`${actor.name} activa ${skill.icon} ${skill.name}: ¡Escudo activo!`,'success'); }
+      if (skill.effect === 'evade')     { actor.addStatus({name:'evade', turns:1});     await UI.log(`${actor.name} entra en posición de evasión.`,'success'); }
+      if (skill.effect === 'battleCry') { actor.addStatus({name:'battleCry',turns:2}); await UI.log(`⚔️  ¡${actor.name} lanza un grito de guerra!`,'success'); }
+
+    } else if (skill.type === 'heal') {
+      const h = Math.floor(actor.maxHp * 0.28);
+      actor.hp = actor.hp + h;
+      actor.addStatus({name:'regen',turns:3});
+      await UI.log(`💛 ${actor.name} usa Luz Sagrada: recupera ${h} HP + Regeneración.`,'success');
+    }
+  },
+
+  async enemyTurn() {
+    if (this.enemy.isDead) return;
+
+    // Tick de estados enemigo
+    const eMsgs = this.enemy.tickStatuses();
+    for (const m of eMsgs) { await UI.log(m.text, m.type); await delay(150); }
+    if (this.enemy.isDead) { await this.onEnemyDead(); return; }
+
+    // Tick de estados jugador
+    const pMsgs = this.player.tickStatuses();
+    for (const m of pMsgs) { await UI.log(m.text, m.type); await delay(150); }
+    if (this.player.isDead) { await this.onPlayerDead(); return; }
+
+    // Aturdido → pierde turno
+    if (this.enemy.hasStatus('stun')) {
+      await UI.log(`⚡ ${this.enemy.name} está aturdido y pierde su turno.`, 'system');
+      this.enemy.removeStatus('stun');
+    } else {
+      const action = this.enemy.chooseAction();
+      await delay(400);
+
+      if (action.effect === 'stun') {
+        this.player.addStatus({name:'stun',turns:1});
+        await UI.log(`${this.enemy.icon} ${this.enemy.name} usa ${action.name}: ¡${this.player.name} queda aturdido!`,'enemy');
+      } else if (action.effect === 'poison') {
+        this.player.addStatus({name:'poison',turns:3});
+        const {dmg} = this.enemy.calcDamage(action);
+        const finalDmg = this.player.hasStatus('shield') ? Math.floor(dmg*0.45): dmg;
+        this.player.hp = this.player.hp - finalDmg;
+        await UI.log(`${this.enemy.icon} ${this.enemy.name} usa ${action.name}: ${finalDmg} daño + ☠️ veneno.`,'enemy');
+        UI.shakeEl('player-hud');
+      } else if (action.effect === 'burn') {
+        this.player.addStatus({name:'burn',turns:2});
+        const {dmg,crit} = this.enemy.calcDamage(action);
+        const finalDmg = this.player.hasStatus('shield') ? Math.floor(dmg*0.45): dmg;
+        const evaded = this.player.hasStatus('evade') && chance(0.55);
+        if (evaded) {
+          await UI.log(`💨 ${this.player.name} evade el ataque de ${this.enemy.name}.`, 'success');
+        } else {
+          this.player.hp = this.player.hp - finalDmg;
+          UI.shakeEl('player-hud');
+          await UI.log(`${this.enemy.icon} ${this.enemy.name} usa ${action.name}: ${finalDmg} daño + 🔥 quemadura${crit?'  ¡CRÍTICO!':''}`, crit?'critical':'enemy');
+        }
+      } else {
+        const {dmg,crit} = this.enemy.calcDamage(action);
+        const evaded = this.player.hasStatus('evade') && chance(0.55);
+        if (evaded) {
+          await UI.log(`💨 ${this.player.name} evade el ataque de ${this.enemy.name}.`, 'success');
+        } else {
+          const reduced = Math.max(1, dmg - Math.floor(this.player.def * 0.4));
+          const finalDmg = this.player.hasStatus('shield') ? Math.floor(reduced*0.45) : reduced;
+          this.player.hp = this.player.hp - finalDmg;
+          UI.shakeEl('player-hud');
+          await UI.log(`${this.enemy.icon} ${this.enemy.name} usa ${action.name}: ${finalDmg} daño${crit?' ✨ ¡CRÍTICO!':''}`, crit?'critical':'enemy');
+        }
+      }
+
+      if (this.player.hasStatus('evade')) this.player.removeStatus('evade');
+    }
+
+    UI.updatePlayer(this.player);
+    UI.updateEnemy(this.enemy);
+
+    if (this.player.isDead) { await this.onPlayerDead(); return; }
+
+    if (this.player.hasStatus('stun')) {
+      await UI.log(`⚡ ${this.player.name} está aturdido y pierde su turno.`,'warning');
+      this.player.removeStatus('stun');
+      await delay(400);
+      await this.enemyTurn();
+    } else {
+      this.playerTurn = true;
+      UI.renderActions(this.playerSkills, this.player, false);
+    }
+  },
+
+  async useItemInBattle(id) {
+    if (!this.battleActive || !this.playerTurn) return;
+    const msg = this.player.useItem(id);
+    if (!msg) { await UI.log('❌ Sin objetos disponibles.','warning'); return; }
+    UI.setActionsDisabled(true); this.playerTurn = false;
+    await UI.log(msg, 'success');
+    UI.updatePlayer(this.player);
+    await delay(400);
+    await this.enemyTurn();
+  },
+
+  // ─── EVENTS ───────────────────────────────────────
+
+  async onEnemyDead() {
+    this.battleActive = false;
+    UI.setActionsDisabled(true);
+    UI.updateEnemy(this.enemy);
+    await UI.log(`🏆 ¡${this.enemy.name} ha sido derrotado!`, 'success', 120);
+
+    const xpGained   = this.enemy.xpReward;
+    const goldGained  = this.enemy.goldReward + rand(0, 5);
+    this.player.gold += goldGained;
+    const leveledUp   = this.player.gainXP(xpGained);
+
+    await delay(300);
+    await UI.log(`✨ +${xpGained} XP  💰 +${goldGained} Oro`, 'success');
+
+    if (leveledUp) {
+      await delay(400);
+      document.getElementById('p-name').classList.add('level-up-flash');
+      setTimeout(()=>document.getElementById('p-name').classList.remove('level-up-flash'),1800);
+      await UI.log(`🌟 ¡${this.player.name} sube al nivel ${this.player.level}! Atributos mejorados.`, 'warning', 160);
+    }
+
+    UI.updatePlayer(this.player);
+    await delay(600);
+
+    if (this.currentFloor === FLOORS) {
+      await this.onVictory();
+    } else {
+      UI.showOverlay({
+        title: this.currentFloor < FLOORS - 1 ? '⚔️ Batalla Ganada' : '💀 Sub-Jefe Caído',
+        titleClass: 'victory',
+        desc: `Piso ${this.currentFloor} conquistado. ${this.currentFloor < FLOORS-1 ? '¿Continúas el descenso?' : '¡El trono del mal se acerca!'}`,
+        rewards: `✨ +${xpGained} XP  💰 +${goldGained} Oro${leveledUp ? `\n🌟 ¡SUBISTE AL NIVEL ${this.player.level}!` : ''}`,
+        btn1: 'Avanzar →',
+        cb1: () => { this.currentFloor++; this.startFloor(); }
+      });
+    }
+  },
+
+  async onPlayerDead() {
+    this.battleActive = false;
+    UI.setActionsDisabled(true);
+    await UI.log(`💔 ${this.player.name} ha caído en combate...`, 'enemy', 160);
+    await delay(600);
+    UI.showOverlay({
+      title: '💀 Caído en Batalla',
+      titleClass: 'defeat',
+      desc: `${this.player.name} fue derrotado en el Piso ${this.currentFloor} por ${this.enemy.name}. Tu leyenda termina aquí... ¿o quizás no?`,
+      rewards: `Piso alcanzado: ${this.currentFloor} de ${FLOORS}`,
+      btn1: '⚔️ Nueva Partida',
+      btn2: '🔁 Reintentar Piso',
+      cb1: () => location.reload(),
+      cb2: () => {
+        // Restaura al jugador con penalización
+        this.player.hp = Math.floor(this.player.maxHp * 0.6);
+        this.player.mp = Math.floor(this.player.maxMp * 0.6);
+        this.startFloor();
+      }
+    });
+  },
+
+  async onVictory() {
+    await UI.log('🌟 ¡EL SEÑOR OSCURO HA SIDO DERROTADO! ¡LA LUZ REINA!', 'success', 200);
+    await delay(800);
+    UI.showOverlay({
+      title: '👑 ¡VICTORIA!',
+      titleClass: 'victory',
+      desc: `¡${this.player.name} ha liberado el reino! Las sombras se disipan y los pueblos celebran tu nombre.`,
+      rewards: `🏆 Nivel final: ${this.player.level}\n💰 Oro total: ${this.player.gold}\n⚔️ Clase: ${CLASS_DATA.find(c=>c.id===this.player.className).name}`,
+      btn1: '🔄 Jugar de nuevo',
+      cb1: () => location.reload()
+    });
+  },
+
+  // ─── TIENDA (async/await con Promise) ─────────────
+
+  async shopEvent() {
+    await UI.log('🏪 Encuentras un mercader errante entre las sombras...', 'system', 140);
+    return new Promise(resolve => {
+      UI.showOverlay({
+        title: '🏪 Mercader',
+        titleClass: 'victory',
+        desc: '¿Qué deseas comprar antes de continuar?',
+        rewards:
+          `🧪 Poción de HP (+40) — 15 Oro\n` +
+          `💧 Élixir de MP (+30) — 12 Oro\n` +
+          `💰 Tu oro: ${this.player.gold}`,
+        btn1: '🧪 Comprar Poción (15 Oro)',
+        btn2: '💨 Continuar sin comprar',
+        cb1: () => {
+          if (this.player.gold >= 15) {
+            this.player.gold -= 15;
+            const p = this.player.inventory.find(i=>i.id==='potion');
+            if(p) p.count++; else this.player.inventory.push({id:'potion',name:'Poción',icon:'🧪',count:1,desc:'Restaura 40 HP'});
+            UI.log('🧪 Compraste una Poción de HP.','success');
+          } else {
+            UI.log('❌ No tienes suficiente oro.','warning');
+          }
+          UI.updatePlayer(this.player);
+          resolve();
+        },
+        cb2: () => resolve()
+      });
+    });
+  },
+};
+
+// ═══════════════════════════════════════════════════════
+//  ARRANQUE
+// ═══════════════════════════════════════════════════════
+game.init();
+</script>
+</body>
+</html>
